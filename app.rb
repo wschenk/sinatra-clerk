@@ -2,9 +2,16 @@
 require 'dotenv/load'
 require 'sinatra'
 require 'sinatra/activerecord'
-require_relative 'routes/posts'
+require_relative 'routes/account'
 require 'jwt'
 require 'clerk'
+
+# Run migrations in production if not already running
+if ENV['APP_ENV'] == 'production' && ENV['RUNNING_MIGRATIONS'] != 'true'
+  ENV['RUNNING_MIGRATIONS'] = 'true'
+  puts 'Running migrate'
+  system('bundle exec rake db:migrate')
+end
 
 # For cookies
 use Rack::Session::Cookie, key: 'rack.session',
@@ -41,23 +48,21 @@ get '/private' do
 end
 
 def auth_check
-  # clerk = Clerk::SDK.new(api_key: ENV.fetch('CLERK_SECRET_KEY', nil))
-
   token = extract_token_from_header
 
   if token
     begin
       decoded_token = Clerk::SDK.new.verify_token(token)
-      puts decoded_token
       user_id = decoded_token['sub']
-      puts "Valid JWT token found for user_id: #{user_id}"
-      return yield
+      puts "JWT token found: #{user_id}"
+
+      account = Account.from_clerk_id(user_id)
+
+      return yield(account)
     rescue JWT::DecodeError
       puts 'Invalid JWT token'
     end
   end
-
-  return yield if session[:account_id]
 
   halt 403, { access: :denied }.to_json
 end
