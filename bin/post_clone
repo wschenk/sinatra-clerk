@@ -1,0 +1,4 @@
+#!/bin/bash
+
+bundle install
+op inject -i secrets.env -o .env
