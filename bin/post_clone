@@ -1,4 +1,4 @@
 #!/bin/bash
-
+git init
 bundle install
 op inject -i secrets.env -o .env
